@@ -45,6 +45,30 @@
             <artifactId>logback-classic</artifactId>
             <version>1.5.16</version>
         </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-ollama</artifactId>
+            <version>1.0.0-beta3</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>ollama-examples</artifactId>
+            <version>1.0.0-beta3</version>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.tinylog</groupId>
+                    <artifactId>slf4j-tinylog</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-local-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
     </dependencies>
 
