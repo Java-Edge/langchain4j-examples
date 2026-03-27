@@ -1,6 +1,8 @@
 package dev.langchain4j.example.mcp.github;
 
+import dev.langchain4j.service.TokenStream;
+
 public interface Bot {
 
-    String chat(String prompt);
+    TokenStream chat(String prompt);
 }

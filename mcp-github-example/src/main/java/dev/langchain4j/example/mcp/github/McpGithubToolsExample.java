@@ -8,16 +8,21 @@ import dev.langchain4j.mcp.client.McpClient;
 import dev.langchain4j.mcp.client.transport.McpTransport;
 import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ResponseFormat;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import dev.langchain4j.model.localai.LocalAiChatModel;
 import dev.langchain4j.model.ollama.OllamaChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.tool.ToolProvider;
 import utils.LangChain4jOllamaContainer;
 
 import java.net.http.HttpClient;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static dev.langchain4j.internal.Utils.isNullOrEmpty;
 import static utils.AbstractOllamaInfrastructure.*;
@@ -55,12 +60,14 @@ public class McpGithubToolsExample {
 //                .logRequests(true)
 //                .logResponses(true)
 //                .build();
-        // 连接本地 LMStudio 服务
+        // 连接本地 LMStudio 服务 - 流式输出版本
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1) ;
+                .version(HttpClient.Version.HTTP_1_1);
         JdkHttpClientBuilder jdkHttpClientBuilder = JdkHttpClient.builder()
                 .httpClientBuilder(httpClientBuilder);
-        OpenAiChatModel model = OpenAiChatModel.builder()
+
+        // 使用流式模型
+        StreamingChatModel streamingModel = OpenAiStreamingChatModel.builder()
                 .baseUrl("http://127.0.0.1:1234/v1/")
                 .httpClientBuilder(jdkHttpClientBuilder)
                 .modelName("mistralai/ministral-3-14b-reasoning")
@@ -82,11 +89,37 @@ public class McpGithubToolsExample {
 //                .build();
 
         Bot bot = AiServices.builder(Bot.class)
-                .chatModel(model)
+                .streamingChatModel(streamingModel)
 //                .toolProvider(toolProvider)
                 .build();
 
-        String response = bot.chat("Summarize the last 3 commits of the LangChain4j GitHub repository");
-        System.out.println("RESPONSE: " + response);
+        System.out.println("开始流式输出响应：\n");
+        System.out.println("RESPONSE: ");
+
+        // 使用CompletableFuture等待流式响应完成
+        CompletableFuture<String> futureResponse = new CompletableFuture<>();
+        StringBuilder fullResponse = new StringBuilder();
+
+        bot.chat("Summarize the last 3 commits of the LangChain4j GitHub repository")
+                .onPartialResponse(partialResponse -> {
+                    // 每次收到部分响应时立即打印
+                    System.out.print(partialResponse);
+                    fullResponse.append(partialResponse);
+                })
+                .onCompleteResponse(completeResponse -> {
+                    // 响应完成
+                    System.out.println("\n\n--- 流式输出完成 ---");
+                    futureResponse.complete(fullResponse.toString());
+                })
+                .onError(error -> {
+                    // 错误处理
+                    System.err.println("\n错误: " + error.getMessage());
+                    error.printStackTrace();
+                    futureResponse.completeExceptionally(error);
+                })
+                .start();
+
+        // 等待流式响应完成
+        futureResponse.join();
     }
 }
